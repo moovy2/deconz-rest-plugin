@@ -1,9 +1,10 @@
 {
   "schema": "devcap1.schema.json",
+  "uuid": "5ee1ec56-058c-409e-a0b1-21dc4254203c",
   "manufacturername": "Schneider Electric",
   "modelid": "CCT591011_AS",
-  "vendor": "LK Wiser",
-  "product": "Contact sensor CCT591011_AS",
+  "vendor": "Schneider Electric",
+  "product": "LK Wiser door and windows sensor (550B1023)",
   "sleeper": true,
   "status": "Gold",
   "subdevices": [
@@ -56,18 +57,18 @@
         {
           "name": "config/battery",
           "awake": true,
-          "refresh.interval": 3700,
+          "refresh.interval": 3665,
           "read": {
             "at": "0x0021",
             "cl": "0x0001",
             "ep": 1,
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "parse": {
             "at": "0x0021",
             "cl": "0x0001",
             "ep": 1,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "eval": "Item.val = Attr.val / 2"
           }
         },
@@ -119,8 +120,8 @@
         {
           "at": "0x0021",
           "dt": "0x20",
-          "min": 3600,
-          "max": 43200,
+          "min": 3400,
+          "max": 3600,
           "change": "0x00000001"
         }
       ]

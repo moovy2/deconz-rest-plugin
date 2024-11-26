@@ -1,9 +1,10 @@
 {
   "schema": "devcap1.schema.json",
+  "uuid": "5a2c2e2d-c5b6-41c6-977a-3d4aeb327499",
   "manufacturername": "innr",
   "modelid": "SP 120",
-  "vendor": "innr",
-  "product": "SP 120 smart plug",
+  "vendor": "Innr",
+  "product": "Smart plug (SP 120)",
   "sleeper": false,
   "status": "Gold",
   "path": "/devices/innr/sp_120.json",
@@ -63,6 +64,19 @@
         "0x01",
         "0x0702"
       ],
+      "fingerprint": {
+        "endpoint": "0x01",
+        "profile": "0xc05e",
+        "device": "0x0010",
+        "in": [
+          "0x0006",
+          "0x0008",
+          "0x0702"
+        ],
+        "out": [
+          "0x0019"
+        ]
+      },
       "items": [
         {
           "name": "attr/id"
@@ -120,6 +134,14 @@
         "0x01",
         "0x0b04"
       ],
+      "fingerprint": {
+        "endpoint": "0x01",
+        "profile": "0xc05e",
+        "device": "0x0010",
+        "in": [
+          "0x0B04"
+        ]
+      },
       "items": [
         {
           "name": "attr/id"

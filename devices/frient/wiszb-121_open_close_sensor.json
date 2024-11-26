@@ -1,9 +1,10 @@
 {
   "schema": "devcap1.schema.json",
+  "uuid": "7a0b8719-70b6-42d5-b430-14d38f87bfd4",
   "manufacturername": "frient A/S",
   "modelid": "WISZB-121",
-  "vendor": "Develco Products",
-  "product": "WISZB-121 open/close sensor",
+  "vendor": "Frient",
+  "product": "Entry sensor (WISZB-121)",
   "sleeper": true,
   "status": "Gold",
   "subdevices": [
@@ -54,14 +55,14 @@
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 35,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015"
           },
           "parse": {
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 35,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015",
             "script": "develco_firmware.js"
           }
@@ -79,7 +80,7 @@
             "at": "0x0020",
             "cl": "0x0001",
             "ep": 35,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "script": "develco_battery.js"
           }
         },

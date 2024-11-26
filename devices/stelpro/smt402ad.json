@@ -1,10 +1,12 @@
 {
   "schema": "devcap1.schema.json",
+  "uuid": "f1c4277b-f0bc-4d08-93ae-5010230b66ec",
   "manufacturername": "Stelpro",
   "modelid": "SMT402AD",
-  "product": "SMT402AD",
+  "vendor": "Stelpro",
+  "product": "Thermostat (SMT402AD)",
   "sleeper": false,
-  "status": "Silver",
+  "status": "Gold",
   "subdevices": [
     {
       "type": "$TYPE_THERMOSTAT",
@@ -14,6 +16,19 @@
         "0x19",
         "0x0201"
       ],
+      "fingerprint": {
+        "profile": "0x0104",
+        "device": "0x0301",
+        "endpoint": "0x19",
+        "in": [
+          "0x0001",
+          "0x0003",
+          "0x0004",
+          "0x0006",
+          "0x0201",
+          "0x0204"
+        ]
+      },
       "items": [
         {
           "name": "attr/id"
@@ -34,7 +49,20 @@
           "name": "attr/name"
         },
         {
-          "name": "attr/swversion"
+          "name": "attr/swversion",
+          "read": {
+            "at": "0x0001",
+            "cl": "0x0000",
+            "ep": 0,
+            "fn": "zcl:attr"
+          },
+          "parse": {
+            "at": "0x0001",
+            "cl": "0x0000",
+            "ep": 255,
+            "eval": "Item.val = Attr.val",
+            "fn": "zcl:attr"
+          }
         },
         {
           "name": "attr/type"
@@ -50,7 +78,7 @@
             "at": "0x4001",
             "cl": "0x0201",
             "ep": 25,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1185"
           },
           "write": {
@@ -59,7 +87,7 @@
             "dt": "0x29",
             "ep": 25,
             "eval": "Item.val",
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1185"
           },
           "parse": {
@@ -67,7 +95,7 @@
             "cl": "0x0201",
             "ep": 25,
             "eval": "Item.val = Attr.val;",
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1185"
           },
           "default": 0
@@ -96,7 +124,7 @@
             "at": "0x0014",
             "cl": "0x0201",
             "ep": 25,
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "write": {
             "at": "0x0014",
@@ -104,7 +132,7 @@
             "dt": "0x29",
             "ep": 25,
             "eval": "Item.val",
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1185"
           },
           "parse": {
@@ -112,7 +140,7 @@
             "cl": "0x0201",
             "ep": 25,
             "eval": "Item.val = Attr.val;",
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "default": 17
         },
@@ -130,7 +158,7 @@
             "cl": "0x0201",
             "ep": 25,
             "eval": "Item.val = Attr.val + R.item('config/offset').val",
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "default": 0
         },
@@ -142,14 +170,14 @@
             "at": "0x0008",
             "cl": "0x0201",
             "ep": 25,
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "parse": {
             "at": "0x0008",
             "cl": "0x0201",
             "ep": 25,
             "eval": "Item.val = Attr.val;",
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "default": 0
         }
@@ -160,9 +188,21 @@
       "restapi": "/sensors",
       "uuid": [
         "$address.ext",
-        "0x01",
+        "0x19",
         "0x0405"
       ],
+      "fingerprint": {
+        "profile": "0x0104",
+        "device": "0x0301",
+        "endpoint": "0x19",
+        "in": [
+          "0x0001",
+          "0x0003",
+          "0x0004",
+          "0x0006",
+          "0x0405"
+        ]
+      },
       "items": [
         {
           "name": "attr/id"
@@ -183,7 +223,20 @@
           "name": "attr/name"
         },
         {
-          "name": "attr/swversion"
+          "name": "attr/swversion",
+          "read": {
+            "at": "0x0001",
+            "cl": "0x0000",
+            "ep": 0,
+            "fn": "zcl:attr"
+          },
+          "parse": {
+            "at": "0x0001",
+            "cl": "0x0000",
+            "ep": 255,
+            "eval": "Item.val = Attr.val",
+            "fn": "zcl:attr"
+          }
         },
         {
           "name": "attr/type"
@@ -208,14 +261,14 @@
             "at": "0x0000",
             "cl": "0x0405",
             "ep": 25,
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "parse": {
             "at": "0x0000",
             "cl": "0x0405",
             "ep": 25,
             "eval": "Item.val = Attr.val + R.item('config/offset').val",
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "default": 0
         },

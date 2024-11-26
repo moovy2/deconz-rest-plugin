@@ -1,3 +1,4 @@
+#include <math.h>
 #include "de_web_plugin.h"
 #include "de_web_plugin_private.h"
 #include "device.h"
@@ -150,8 +151,7 @@ void DeRestPluginPrivate::handleElectricalMeasurementClusterIndication(const deC
                     else if (modelId == QLatin1String("RICI01") ||                                     // LifeControl Smart Plug
                              modelId.startsWith(QLatin1String("outlet")) ||                            // Samsung SmartThings IM6001-OTP/IM6001-OTP01
                              modelId.startsWith(QLatin1String("ROB_200")) ||                           // ROBB Smarrt micro dimmer
-                             modelId.startsWith(QLatin1String("Micro Smart Dimmer")) ||                // Sunricher Micro Smart Dimmer
-                             modelId.startsWith(QLatin1String("TH112")))                               // Sinope Thermostats
+                             modelId.startsWith(QLatin1String("Micro Smart Dimmer")))                  // Sunricher Micro Smart Dimmer
                     {
                         voltage = static_cast<quint16>(round((double)voltage / 10.0)); // 0.1V -> V
                         DDF_AnnoteZclParse(sensor, item, ind.srcEndpoint(), ind.clusterId(), attrId, "if (Attr.val != 65535) { Item.val = Math.round(Attr.val / 10); } ");
@@ -195,9 +195,7 @@ void DeRestPluginPrivate::handleElectricalMeasurementClusterIndication(const deC
                         modelId.startsWith(QLatin1String("Micro Smart Dimmer")) ||                // Sunricher Micro Smart Dimmer
                         modelId == QLatin1String("SMRZB-1") ||                                    // Develco smart cable
                         modelId == QLatin1String("PoP") ||                                        // Apex Smart Plug
-                        modelId == QLatin1String("TS011F") ||                                     // Tuya plugs
-                        modelId.startsWith(QLatin1String("S1-R")) ||                              // Ubisys S1-R
-                        modelId.startsWith(QLatin1String("D1")))                                  // Ubisys D1/D1-R
+                        modelId == QLatin1String("TS011F"))                                       // Tuya plugs
                     {
                         // already in mA
                         DDF_AnnoteZclParse(sensor, item, ind.srcEndpoint(), ind.clusterId(), attrId, "if (Attr.val != 65535) { Item.val = Attr.val; } ");

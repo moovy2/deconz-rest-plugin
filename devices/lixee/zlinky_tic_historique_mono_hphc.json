@@ -1,9 +1,10 @@
 {
   "schema": "devcap1.schema.json",
+  "uuid": "71da8cd7-eea9-4798-8a63-a527469354cf",
   "manufacturername": "LiXee",
   "modelid": "ZLinky_TIC",
   "vendor": "LiXee",
-  "product": "ZLinky_TIC historique+HPHC",
+  "product": "ZLinky_TIC mode historique HPHC",
   "sleeper": false,
   "status": "Draft",
   "subdevices": [
@@ -51,12 +52,12 @@
         },
         {
           "name": "state/consumption",
-          "refresh.interval": 300,
+          "refresh.interval": 365,
           "read": {
             "at": "0x0100",
             "cl": "0x0702",
             "ep": 1,
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "parse": {
             "at": "0x0100",
@@ -67,12 +68,12 @@
         },
         {
           "name": "state/current",
-          "refresh.interval": 300,
+          "refresh.interval": 365,
           "read": {
             "at": "0x0508",
             "cl": "0x0b04",
             "ep": 1,
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "parse": {
             "at": "0x0508",
@@ -86,12 +87,12 @@
         },
         {
           "name": "state/power",
-          "refresh.interval": 300,
+          "refresh.interval": 365,
           "read": {
             "at": "0x050f",
             "cl": "0x0b04",
             "ep": 1,
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "parse": {
             "at": "0x050f",
@@ -102,7 +103,7 @@
         },
         {
           "name": "state/voltage",
-          "refresh.interval": 300
+          "refresh.interval": 365
         }
       ]
     },
@@ -150,12 +151,12 @@
         },
         {
           "name": "state/consumption",
-          "refresh.interval": 300,
+          "refresh.interval": 365,
           "read": {
             "at": "0x0102",
             "cl": "0x0702",
             "ep": 1,
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "parse": {
             "at": "0x0102",
@@ -170,7 +171,7 @@
       ]
     },
     {
-      "type": "ZHAAlarm",
+      "type": "$TYPE_ALARM_SENSOR",
       "restapi": "/sensors",
       "uuid": [
         "$address.ext",
@@ -213,19 +214,19 @@
         },
         {
           "name": "state/alarm",
-          "refresh.interval": 300,
+          "refresh.interval": 365,
           "read": {
             "at": "0x0005",
             "cl": "0xff66",
             "ep": 1,
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "parse": {
             "at": "0x0005",
             "cl": "0xff66",
             "ep": 1,
             "eval": "Item.val = Attr.val > 0 ? true : false",
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "default": false
         },
@@ -278,12 +279,12 @@
         },
         {
           "name": "state/consumption",
-          "refresh.interval": 300,
+          "refresh.interval": 365,
           "read": {
             "at": "0x0100",
             "cl": "0x0702",
             "ep": 1,
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "parse": {
             "at": "0x0100",
@@ -306,7 +307,7 @@
       "report": [
         {
           "at": "0x0000",
-          "dt": "0x23",
+          "dt": "0x25",
           "min": 60,
           "max": 300,
           "change": "0x00000001"

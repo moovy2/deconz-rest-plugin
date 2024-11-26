@@ -18,9 +18,6 @@
 #include <stdint.h>
 #include <queue>
 #include <memory>
-#if QT_VERSION < 0x050000
-#include <QHttpRequestHeader>
-#endif
 #include <sqlite3.h>
 #include <deconz.h>
 #include "device.h"
@@ -31,19 +28,17 @@
 #include "event_emitter.h"
 #include "green_power.h"
 #include "resource.h"
+#include "rest_api.h"
 #include "rest_node_base.h"
 #include "light_node.h"
 #include "group.h"
 #include "group_info.h"
-#include "ias_zone.h"
 #include "scene.h"
 #include "sensor.h"
 #include "resourcelinks.h"
 #include "rule.h"
 #include "bindings.h"
-#include <math.h>
 #include "websocket_server.h"
-#include "tuya.h"
 
 // enable domain specific string literals
 using namespace deCONZ::literals;
@@ -52,35 +47,6 @@ using namespace deCONZ::literals;
   // Workaround to detect ARM and AARCH64 in older Qt versions.
   #define ARCH_ARM
 #endif
-
-/*! JSON generic error message codes */
-#define ERR_UNAUTHORIZED_USER          1
-#define ERR_INVALID_JSON               2
-#define ERR_RESOURCE_NOT_AVAILABLE     3
-#define ERR_METHOD_NOT_AVAILABLE       4
-#define ERR_MISSING_PARAMETER          5
-#define ERR_PARAMETER_NOT_AVAILABLE    6
-#define ERR_INVALID_VALUE              7
-#define ERR_PARAMETER_NOT_MODIFIABLE   8
-#define ERR_TOO_MANY_ITEMS             11
-#define ERR_DUPLICATE_EXIST            100 // de extension
-#define ERR_NOT_ALLOWED_SENSOR_TYPE    501
-#define ERR_SENSOR_LIST_FULL           502
-#define ERR_RULE_ENGINE_FULL           601
-#define ERR_CONDITION_ERROR            607
-#define ERR_ACTION_ERROR               608
-#define ERR_INTERNAL_ERROR             901
-
-#define ERR_NOT_CONNECTED              950 // de extension
-#define ERR_BRIDGE_BUSY                951 // de extension
-
-#define ERR_LINK_BUTTON_NOT_PRESSED    101
-#define ERR_DEVICE_OFF                 201
-#define ERR_DEVICE_NOT_REACHABLE       202
-#define ERR_BRIDGE_GROUP_TABLE_FULL    301
-#define ERR_DEVICE_GROUP_TABLE_FULL    302
-
-#define ERR_DEVICE_SCENES_TABLE_FULL   402 // de extension
 
 #define IDLE_TIMER_INTERVAL 1000
 #define IDLE_LIMIT 30
@@ -227,6 +193,7 @@ using namespace deCONZ::literals;
 #define LEGRAND_CONTROL_CLUSTER_ID            0xFC40
 #define XIAOMI_CLUSTER_ID                     0xFCC0
 #define ADUROLIGHT_CLUSTER_ID                 0xFCCC
+#define XIAOYAN_CLUSTER_ID                    0xFCCC
 #define XAL_CLUSTER_ID                        0xFCCE
 #define BOSCH_AIR_QUALITY_CLUSTER_ID          quint16(0xFDEF)
 
@@ -254,6 +221,9 @@ using namespace deCONZ::literals;
 #define WINDOW_COVERING_COMMAND_STOP          0x02
 #define WINDOW_COVERING_COMMAND_GOTO_LIFT_PCT 0x05
 #define WINDOW_COVERING_COMMAND_GOTO_TILT_PCT 0x08
+
+#define XIAOYAN_ATTRID_ROTATION_ANGLE      0x001B
+#define XIAOYAN_ATTRID_DURATION            0x001A
 
 #define MULTI_STATE_INPUT_PRESENT_VALUE_ATTRIBUTE_ID quint16(0x0055)
 
@@ -424,10 +394,6 @@ using namespace deCONZ::literals;
 #define MAX_RULE_NAME_LENGTH 64
 #define MAX_SENSOR_NAME_LENGTH 32
 
-// REST API return codes
-#define REQ_READY_SEND   0
-#define REQ_NOT_HANDLED -1
-
 // Special application return codes
 #define APP_RET_UPDATE        40
 #define APP_RET_RESTART_APP   41
@@ -484,9 +450,6 @@ using namespace deCONZ::literals;
 void getTime(quint32 *time, qint32 *tz, quint32 *dstStart, quint32 *dstEnd, qint32 *dstShift, quint32 *standardTime, quint32 *localTime, quint8 mode);
 int getFreeSensorId(); // TODO needs to be part of a Database class
 int getFreeLightId();  // TODO needs to be part of a Database class
-
-// REST API common
-QVariantMap errorToMap(int id, const QString &ressource, const QString &description);
 
 extern const quint64 macPrefixMask;
 
@@ -700,24 +663,6 @@ inline bool checkMacAndVendor(const deCONZ::Node *node, quint16 vendor)
 quint8 zclNextSequenceNumber();
 const deCONZ::Node *getCoreNode(uint64_t extAddress);
 
-// HTTP status codes
-extern const char *HttpStatusOk;
-extern const char *HttpStatusAccepted;
-extern const char *HttpStatusNotModified;
-extern const char *HttpStatusUnauthorized;
-extern const char *HttpStatusBadRequest;
-extern const char *HttpStatusForbidden;
-extern const char *HttpStatusNotFound;
-extern const char *HttpStatusNotImplemented;
-extern const char *HttpStatusServiceUnavailable;
-extern const char *HttpContentHtml;
-extern const char *HttpContentCss;
-extern const char *HttpContentJson;
-extern const char *HttpContentJS;
-extern const char *HttpContentPNG;
-extern const char *HttpContentJPG;
-extern const char *HttpContentSVG;
-
 // Forward declarations
 class DeviceDescriptions;
 class DeviceWidget;
@@ -857,13 +802,13 @@ enum TaskType
     TaskIncBrightness = 35,
     TaskWindowCovering = 36,
     TaskThermostat = 37,
-    // Danalock support
-    TaskDoorLock = 38,
-    TaskDoorUnlock = 39,
+    TaskDoorLock = 38, // Danalock support
+    TaskHueGradient = 45,
     TaskSyncTime = 40,
     TaskTuyaRequest = 41,
     TaskXmasLightStrip = 42,
-    TaskSimpleMetering = 43
+    TaskSimpleMetering = 43,
+    TaskHueEffect = 44
 };
 
 enum XmasLightStripMode
@@ -977,66 +922,6 @@ public:
     QString useragent;
 };
 
-enum ApiVersion
-{
-    ApiVersion_1,        //!< common version 1.0
-    ApiVersion_1_DDEL,   //!< version 1.0, "Accept: application/vnd.ddel.v1"
-    ApiVersion_1_1_DDEL, //!< version 1.1, "Accept: application/vnd.ddel.v1.1"
-    ApiVersion_2_DDEL,   //!< version 2.0, "Accept: application/vnd.ddel.v2"
-};
-
-enum ApiAuthorisation
-{
-    ApiAuthNone,
-    ApiAuthLocal,
-    ApiAuthInternal,
-    ApiAuthFull
-};
-
-enum ApiMode
-{
-    ApiModeNormal,
-    ApiModeStrict,
-    ApiModeEcho,
-    ApiModeHue
-};
-
-/*! \class ApiRequest
-
-    Helper to simplify HTTP REST request handling.
- */
-class ApiRequest
-{
-public:
-    ApiRequest(const QHttpRequestHeader &h, const QStringList &p, QTcpSocket *s, const QString &c);
-    QString apikey() const;
-    ApiVersion apiVersion() const { return version; }
-
-    const QHttpRequestHeader &hdr;
-    const QStringList &path;
-    QTcpSocket *sock;
-    QString content;
-    ApiVersion version;
-    ApiAuthorisation auth;
-    ApiMode mode;
-};
-
-/*! \class ApiResponse
-
-    Helper to simplify HTTP REST request handling.
- */
-class ApiResponse
-{
-public:
-    QString etag;
-    const char *httpStatus;
-    const char *contentType;
-    QList<QPair<QString, QString> > hdrFields; // extra header fields
-    QVariantMap map; // json content
-    QVariantList list; // json content
-    QString str; // json string
-};
-
 /*! \class ApiConfig
 
     Provide config to the resource system.
@@ -1078,7 +963,6 @@ public:
     void initAuthentication();
     bool allowedToCreateApikey(const ApiRequest &req, ApiResponse &rsp, QVariantMap &map);
     void authorise(ApiRequest &req, ApiResponse &rsp);
-    QString encryptString(const QString &str);
 
     // REST API gateways
     int handleGatewaysApi(const ApiRequest &req, ApiResponse &rsp);
@@ -1140,14 +1024,15 @@ public:
     int getLightData(const ApiRequest &req, ApiResponse &rsp);
     int getLightState(const ApiRequest &req, ApiResponse &rsp);
     int setLightState(const ApiRequest &req, ApiResponse &rsp);
+    int setLightConfig(const ApiRequest &req, ApiResponse &rsp);
     int setWindowCoveringState(const ApiRequest &req, ApiResponse &rsp, TaskItem &taskRef, QVariantMap &map);
     int setWarningDeviceState(const ApiRequest &req, ApiResponse &rsp, TaskItem &taskRef, QVariantMap &map);
     int setTuyaDeviceState(const ApiRequest &req, ApiResponse &rsp, TaskItem &taskRef, QVariantMap &map);
+    int setDoorLockState(const ApiRequest &req, ApiResponse &rsp, TaskItem &taskRef, QVariantMap &map);
     int setLightAttributes(const ApiRequest &req, ApiResponse &rsp);
     int deleteLight(const ApiRequest &req, ApiResponse &rsp);
     int removeAllScenes(const ApiRequest &req, ApiResponse &rsp);
     int removeAllGroups(const ApiRequest &req, ApiResponse &rsp);
-    int getConnectivity(const ApiRequest &req, ApiResponse &rsp, bool alt);
     void handleLightEvent(const Event &e);
 
     bool lightToMap(const ApiRequest &req, const LightNode *webNode, QVariantMap &map);
@@ -1226,7 +1111,6 @@ public:
     int createRule(const ApiRequest &req, ApiResponse &rsp);
     int updateRule(const ApiRequest &req, ApiResponse &rsp);
     int deleteRule(const ApiRequest &req, ApiResponse &rsp);
-    void queueCheckRuleBindings(const Rule &rule);
     bool evaluateRule(Rule &rule, const Event &e, Resource *eResource, ResourceItem *eItem, QDateTime now, QDateTime previousNow);
     void indexRuleTriggers(Rule &rule);
     void triggerRule(Rule &rule);
@@ -1259,7 +1143,7 @@ public:
 
     // Otau
     void initOtau();
-    void otauDataIndication(const deCONZ::ApsDataIndication &ind, const deCONZ::ZclFrame &zclFrame);
+    void otauDataIndication(const deCONZ::ApsDataIndication &ind, const deCONZ::ZclFrame &zclFrame, Device *device);
     bool isOtauBusy();
     bool isOtauActive();
     int otauLastBusyTimeDelta() const;
@@ -1284,6 +1168,7 @@ public Q_SLOTS:
     void apsdeDataIndicationDevice(const deCONZ::ApsDataIndication &ind, Device *device);
     void apsdeDataIndication(const deCONZ::ApsDataIndication &ind);
     void apsdeDataConfirm(const deCONZ::ApsDataConfirm &conf);
+    void apsdeDataRequestEnqueued(const deCONZ::ApsDataRequest &req);
     void gpDataIndication(const deCONZ::GpDataIndication &ind);
     void gpProcessButtonEvent(const deCONZ::GpDataIndication &ind);
     void configurationChanged();
@@ -1320,11 +1205,8 @@ public Q_SLOTS:
     void checkSensorGroup(Sensor *sensor);
     void checkOldSensorGroups(Sensor *sensor);
     void deleteGroupsWithDeviceMembership(const QString &id);
-    void processUbisysBinding(Sensor *sensor, const Binding &bnd);
     void bindingTimerFired();
-    void bindingToRuleTimerFired();
     void bindingTableReaderTimerFired();
-    void verifyRuleBindingsTimerFired();
     void indexRulesTriggers();
     void fastRuleCheckTimerFired();
     void webhookFinishedRequest(QNetworkReply *reply);
@@ -1449,7 +1331,6 @@ public:
     Rule *getRuleForName(const QString &name);
     void addSensorNode(const deCONZ::Node *node, const deCONZ::NodeEvent *event = 0);
     void addSensorNode(const deCONZ::Node *node, const SensorFingerprint &fingerPrint, const QString &type, const QString &modelId, const QString &manufacturer);
-    void checkUpdatedFingerPrint(const deCONZ::Node *node, quint8 endpoint, Sensor *sensorNode);
     void checkSensorNodeReachable(Sensor *sensor, const deCONZ::NodeEvent *event = 0);
     void checkSensorButtonEvent(Sensor *sensor, const deCONZ::ApsDataIndication &ind, const deCONZ::ZclFrame &zclFrame);
     void updateSensorNode(const deCONZ::NodeEvent &event);
@@ -1514,7 +1395,6 @@ public:
     bool addTaskSetBrightness(TaskItem &task, uint8_t bri, bool withOnOff);
     bool addTaskIncColorTemperature(TaskItem &task, int32_t ct);
     bool addTaskIncBrightness(TaskItem &task, int16_t bri);
-    bool addTaskStopBrightness(TaskItem &task);
     bool addTaskSetColorTemperature(TaskItem &task, uint16_t ct);
     bool addTaskSetEnhancedHue(TaskItem &task, uint16_t hue);
     bool addTaskSetSaturation(TaskItem &task, uint8_t sat);
@@ -1537,7 +1417,6 @@ public:
     bool addTaskWindowCovering(TaskItem &task, uint8_t cmdId, uint16_t pos, uint8_t pct);
     bool addTaskWindowCoveringSetAttr(TaskItem &task, uint16_t mfrCode, uint16_t attrId, uint8_t attrType, uint16_t attrValue);
     bool addTaskWindowCoveringCalibrate(TaskItem &task, int WindowCoveringType);
-    bool addTaskUbisysConfigureSwitch(TaskItem &taskRef);
     bool addTaskThermostatCmd(TaskItem &task, uint16_t mfrCode, uint8_t cmd, int16_t setpoint, uint8_t daysToReturn);
     bool addTaskThermostatGetSchedule(TaskItem &task);
     bool addTaskThermostatSetWeeklySchedule(TaskItem &task, quint8 weekdays, const QString &transitions);
@@ -1550,8 +1429,15 @@ public:
     bool addTaskFanControlReadWriteAttribute(TaskItem &task, uint8_t readOrWriteCmd, uint16_t attrId, uint8_t attrType, uint32_t attrValue, uint16_t mfrCode=0);
     bool addTaskSimpleMeteringReadWriteAttribute(TaskItem &task, uint8_t readOrWriteCmd, uint16_t attrId, uint8_t attrType, uint32_t attrValue, uint16_t mfrCode=0);
 
+    // Advanced features of Hue lights.
+    QStringList getHueEffectNames(quint64 effectBitmap, bool colorloop);
+    QStringList getHueGradientStyleNames(quint16 styleBitmap);
+    bool addTaskHueEffect(TaskItem &task, QString &effect);
+    bool validateHueGradient(const ApiRequest &req, ApiResponse &rsp, QVariantMap &gradient, quint16 styleBitmap);
+    bool addTaskHueGradient(TaskItem &task, QVariantMap &gradient);
+
     // Merry Christmas!
-    bool isXmasLightStrip(LightNode *lightNode);
+    bool isXmasLightStrip(const LightNode *lightNode);
     bool addTaskXmasLightStripOn(TaskItem &task, bool on);
     bool addTaskXmasLightStripMode(TaskItem &task, XmasLightStripMode mode);
     bool addTaskXmasLightStripWhite(TaskItem &task, quint8 bri);
@@ -1590,7 +1476,6 @@ public:
     void handleThermostatUiConfigurationClusterIndication(const deCONZ::ApsDataIndication &ind, deCONZ::ZclFrame &zclFrame);
     void handleAirQualityClusterIndication(const deCONZ::ApsDataIndication &ind, deCONZ::ZclFrame &zclFrame);
     void handleTimeClusterIndication(const deCONZ::ApsDataIndication &ind, deCONZ::ZclFrame &zclFrame);
-    void handleDiagnosticsClusterIndication(const deCONZ::ApsDataIndication &ind, deCONZ::ZclFrame &zclFrame);
     void handleFanControlClusterIndication(const deCONZ::ApsDataIndication &ind, deCONZ::ZclFrame &zclFrame);
     void handleIdentifyClusterIndication(const deCONZ::ApsDataIndication &ind, const deCONZ::ZclFrame &zclFrame);
     void sendTimeClusterResponse(const deCONZ::ApsDataIndication &ind, deCONZ::ZclFrame &zclFrame);
@@ -1609,7 +1494,6 @@ public:
     bool deserialiseThermostatSchedule(const QString &s, QVariantMap *schedule);
     void handleSimpleMeteringClusterIndication(const deCONZ::ApsDataIndication &ind, const deCONZ::ZclFrame &zclFrame);
     void handleElectricalMeasurementClusterIndication(const deCONZ::ApsDataIndication &ind, const deCONZ::ZclFrame &zclFrame);
-    void handleXiaoyanClusterIndication(const deCONZ::ApsDataIndication &ind, deCONZ::ZclFrame &zclFrame);
     void handleXiaomiLumiClusterIndication(const deCONZ::ApsDataIndication &ind, deCONZ::ZclFrame &zclFrame);
     void handleOccupancySensingClusterIndication(const deCONZ::ApsDataIndication &ind, const deCONZ::ZclFrame &zclFrame);
     void handlePowerConfigurationClusterIndication(const deCONZ::ApsDataIndication &ind, const deCONZ::ZclFrame &zclFrame);
@@ -1633,15 +1517,6 @@ public:
     void checkDbUserVersion();
     void cleanUpDb();
     void createTempViews();
-    int getDbPragmaInteger(const char *sql);
-    bool setDbUserVersion(int userVersion);
-    bool upgradeDbToUserVersion1();
-    bool upgradeDbToUserVersion2();
-    bool upgradeDbToUserVersion6();
-    bool upgradeDbToUserVersion7();
-    bool upgradeDbToUserVersion8();
-    bool upgradeDbToUserVersion9();
-    void refreshDeviceDb(const deCONZ::Address &addr);
     void pushZdpDescriptorDb(quint64 extAddress, quint8 endpoint, quint16 type, const QByteArray &data);
     void pushZclValueDb(quint64 extAddress, quint8 endpoint, quint16 clusterId, quint16 attributeId, qint64 data);
     bool dbIsOpen() const;
@@ -1701,7 +1576,7 @@ public:
     size_t apiAuthCurrent;
     std::vector<ApiAuth> apiAuths;
     QString gwAdminUserName;
-    QString gwAdminPasswordHash;
+    std::string gwAdminPasswordHash;
 
     struct SwUpdateState {
      QString noUpdate;
@@ -2087,7 +1962,6 @@ public:
     int idleLimit;
     int idleUpdateZigBeeConf; //
     int idleLastActivity; // delta in seconds
-    bool supportColorModeXyForGroups;
     size_t lightIter;
     size_t sensorIter;
     size_t lightAttrIter;
@@ -2104,7 +1978,6 @@ public:
     std::vector<Sensor> sensors;
     std::list<TaskItem> tasks;
     std::list<TaskItem> runningTasks;
-    QTimer *verifyRulesTimer;
     QTimer *taskTimer;
     QTimer *groupTaskTimer;
     QTimer *checkSensorsTimer;
@@ -2120,12 +1993,9 @@ public:
     EventEmitter *eventEmitter = nullptr;
 
     // bindings
-    size_t verifyRuleIter;
     bool gwReportingEnabled;
-    QTimer *bindingToRuleTimer;
     QTimer *bindingTimer;
     QTimer *bindingTableReaderTimer;
-    std::list<Binding> bindingToRuleQueue; // check if rule exists for discovered bindings
     std::list<BindingTask> bindingQueue; // bind/unbind queue
     std::vector<BindingTableReader> bindingTableReaders;
 

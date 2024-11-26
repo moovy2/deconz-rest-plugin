@@ -1,9 +1,10 @@
 {
   "schema": "devcap1.schema.json",
+  "uuid": "92ca3e7c-3d01-446f-814f-e231b4153e1b",
   "manufacturername": "NIKO NV",
   "modelid": "Connected socket outlet",
   "vendor": "Niko NV",
-  "product": "170-33505/170-33605 smart socket",
+  "product": "Smart socket (170-33505/170-33605)",
   "sleeper": false,
   "status": "Gold",
   "subdevices": [
@@ -120,7 +121,7 @@
             "cl": "0x0B04",
             "ep": 1,
             "eval": "Item.val = Math.round((Attr.val * 1123) / 10000);",
-            "fn": "zcl"
+            "fn": "zcl:attr"
           }
         },
         {
@@ -131,7 +132,7 @@
             "cl": "0x0B04",
             "ep": 1,
             "eval": "Item.val = Math.round(Attr.val / 10);",
-            "fn": "zcl"
+            "fn": "zcl:attr"
           }
         }
       ]
@@ -195,7 +196,7 @@
             "cl": "0x0702",
             "ep": 1,
             "eval": "Item.val = Math.round(Attr.val / 10);",
-            "fn": "zcl"
+            "fn": "zcl:attr"
           }
         },
         {

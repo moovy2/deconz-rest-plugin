@@ -1,9 +1,10 @@
 {
   "schema": "devcap1.schema.json",
+  "uuid": "216c300b-5bef-4788-ac87-1261829af0ea",
   "manufacturername": "Develco Products A/S",
   "modelid": "SMSZB-120",
   "vendor": "Develco Products",
-  "product": "SMSZB-120 smoke sensor",
+  "product": "Intelligent smoke alarm (SMSZB-120)",
   "sleeper": false,
   "status": "Gold",
   "subdevices": [
@@ -22,7 +23,12 @@
         "in": [
           "0x0000",
           "0x0001",
+          "0x000A",
+          "0x000F",
           "0x0500"
+        ],
+        "out": [
+          "0x0019"
         ]
       },
       "items": [
@@ -51,14 +57,14 @@
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 35,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015"
           },
           "parse": {
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 35,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015",
             "script": "develco_firmware.js"
           }
@@ -148,14 +154,14 @@
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 35,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015"
           },
           "parse": {
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 35,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015",
             "script": "develco_firmware.js"
           }
@@ -193,7 +199,7 @@
       ]
     },
     {
-      "type": "Warning device",
+      "type": "$TYPE_WARNING_DEVICE",
       "restapi": "/lights",
       "uuid": [
         "$address.ext",
@@ -225,14 +231,14 @@
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 35,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015"
           },
           "parse": {
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 35,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015",
             "script": "develco_firmware.js"
           }
@@ -244,7 +250,18 @@
           "name": "attr/uniqueid"
         },
         {
-          "name": "state/alert"
+          "name": "state/alert",
+          "description": "Start warning command payload has 5 Bytes. Byte 1: Options. 0x17 = Warning mode 1 (burglar), Strobe, Very high sound. Byte 2-3: Duration, Byte 4: Strobe duty cycle, Byte 5: Strobe level",
+          "read": {
+            "fn": "none"
+          },
+          "write": {
+            "cl": "0x0502",
+            "cmd": "0x00",
+            "ep": "0x01",
+            "eval": "if (Item.val=='select') { '1701000000' } else if (Item.val=='none') { '0000000000' }",
+            "fn": "zcl:cmd"
+          }
         },
         {
           "name": "state/reachable"

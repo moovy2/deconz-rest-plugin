@@ -1,9 +1,24 @@
 {
   "schema": "devcap1.schema.json",
-  "manufacturername": "Danfoss",
-  "modelid": "eTRV0100",
+  "uuid": "76d8605f-9699-439f-bed0-52757d62cff1",
+  "manufacturername": [
+    "Danfoss",
+    "Danfoss",
+    "D5X84YU",
+    "D5X84YU",
+    "Danfoss",
+    "Danfoss"
+  ],
+  "modelid": [
+    "eTRV0100",
+    "eTRV0103",
+    "eT093WRO",
+    "eT093WRG",
+    "TRV001",
+    "TRV003"
+  ],
   "vendor": "Danfoss",
-  "product": "Ally thermostat",
+  "product": "Ally radiator thermostat (014G2461)",
   "sleeper": false,
   "status": "Gold",
   "subdevices": [
@@ -25,6 +40,14 @@
           "0x0204",
           "0x0B05"
         ]
+      },
+      "meta": {
+        "values": {
+          "config/mode": {
+            "off": 0,
+            "heat": 1
+          }
+        }
       },
       "items": [
         {
@@ -61,7 +84,7 @@
             "cl": "0x0001",
             "ep": 1,
             "eval": "Item.val = Attr.val / 2;",
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "read": {
             "fn": "none"
@@ -79,7 +102,7 @@
             "at": "0x4000",
             "cl": "0x0204",
             "ep": 1,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "parse": {
@@ -87,7 +110,7 @@
             "cl": "0x0204",
             "ep": 1,
             "eval": "Item.val = Attr.val;",
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "write": {
@@ -96,7 +119,7 @@
             "dt": "0x30",
             "ep": 1,
             "eval": "Item.val",
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "default": false
@@ -108,7 +131,7 @@
             "at": "0x4015",
             "cl": "0x0201",
             "ep": 1,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "parse": {
@@ -116,7 +139,7 @@
             "cl": "0x0201",
             "ep": 1,
             "eval": "Item.val = Attr.val;",
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "write": {
@@ -125,11 +148,14 @@
             "dt": "0x29",
             "ep": 1,
             "eval": "Item.val",
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "values": [
-            [-8000, "Disabled"]
+            [
+              -8000,
+              "Disabled"
+            ]
           ],
           "default": -8000
         },
@@ -140,7 +166,7 @@
             "at": "0x4003",
             "cl": "0x0201",
             "ep": 1,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "parse": {
@@ -148,7 +174,7 @@
             "cl": "0x0201",
             "ep": 1,
             "eval": "Item.val = Attr.val;",
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "write": {
@@ -157,18 +183,83 @@
             "dt": "0x10",
             "ep": 1,
             "eval": "Item.val",
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "default": false
         },
         {
           "name": "config/heatsetpoint",
-          "refresh.interval": 3660
+          "refresh.interval": 3660,
+          "write": {
+            "fn": "zcl:cmd",
+            "ep": "0x01",
+            "cl": "0x0201",
+            "cmd": "0x40",
+            "eval": "'01' + ('00' + Item.val.toString(16)).slice(-2) + ('00' + Item.val.toString(16)).slice(-4,-2);",
+            "mf": "0x1246"
+          }
+        },
+        {
+          "name": "config/loadbalancing",
+          "refresh.interval": 3660,
+          "read": {
+            "at": "0x4032",
+            "cl": "0x0201",
+            "ep": 1,
+            "fn": "zcl:attr",
+            "mf": "0x1246"
+          },
+          "parse": {
+            "at": "0x4032",
+            "cl": "0x0201",
+            "ep": 1,
+            "eval": "Item.val = Attr.val;",
+            "fn": "zcl:attr",
+            "mf": "0x1246"
+          },
+          "write": {
+            "at": "0x4032",
+            "cl": "0x0201",
+            "dt": "0x10",
+            "ep": 1,
+            "eval": "Item.val",
+            "fn": "zcl:attr",
+            "mf": "0x1246"
+          }
         },
         {
           "name": "config/locked",
           "refresh.interval": 3660
+        },
+        {
+          "name": "config/mode",
+          "refresh.interval": 3660,
+          "read": {
+            "at": "0x4030",
+            "cl": "0x0201",
+            "ep": 1,
+            "fn": "zcl:attr",
+            "mf": "0x1246"
+          },
+          "parse": {
+            "at": "0x4030",
+            "cl": "0x0201",
+            "ep": 1,
+            "eval": "if (Attr.val == 0) { Item.val = 'off' } else if (Attr.val == 1) { Item.val = 'heat' };",
+            "fn": "zcl:attr",
+            "mf": "0x1246"
+          },
+          "write": {
+            "at": "0x4030",
+            "cl": "0x0201",
+            "dt": "0x10",
+            "ep": 1,
+            "eval": "if (Item.val == 'off') { 0 } else if (Item.val == 'heat') { 1 };",
+            "fn": "zcl:attr",
+            "mf": "0x1246"
+          },
+          "default": "heat"
         },
         {
           "name": "config/mountingmode",
@@ -177,7 +268,7 @@
             "at": "0x4013",
             "cl": "0x0201",
             "ep": 1,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "parse": {
@@ -185,7 +276,7 @@
             "cl": "0x0201",
             "ep": 1,
             "eval": "Item.val = Attr.val;",
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "write": {
@@ -194,7 +285,7 @@
             "dt": "0x10",
             "ep": 1,
             "eval": "Item.val",
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "default": false
@@ -206,7 +297,7 @@
             "at": "0x404B",
             "cl": "0x0201",
             "ep": 1,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "parse": {
@@ -214,7 +305,7 @@
             "cl": "0x0201",
             "ep": 1,
             "eval": "Item.val = Attr.val * 10;",
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "write": {
@@ -223,24 +314,91 @@
             "dt": "0x28",
             "ep": 1,
             "eval": "Item.val / 10;",
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
-          "range": [-250, 250],
+          "range": [
+            -250,
+            250
+          ],
           "default": 0
         },
         {
           "name": "config/on"
         },
         {
+          "name": "config/radiatorcovered",
+          "refresh.interval": 3660,
+          "read": {
+            "at": "0x4016",
+            "cl": "0x0201",
+            "ep": 1,
+            "fn": "zcl:attr",
+            "mf": "0x1246"
+          },
+          "parse": {
+            "at": "0x4016",
+            "cl": "0x0201",
+            "ep": 1,
+            "eval": "Item.val = Attr.val;",
+            "fn": "zcl:attr",
+            "mf": "0x1246"
+          },
+          "write": {
+            "at": "0x4016",
+            "cl": "0x0201",
+            "dt": "0x10",
+            "ep": 1,
+            "eval": "Item.val",
+            "fn": "zcl:attr",
+            "mf": "0x1246"
+          }
+        },
+        {
           "name": "config/reachable"
         },
         {
-          "name": "config/schedule"
+          "name": "config/schedule",
+          "refresh.interval": 3660,
+          "read": {
+            "fn": "zcl:cmd",
+            "ep": "0x01",
+            "cl": "0x0201",
+            "cmd": "0x02",
+            "eval": "'7F01'"
+          }
         },
         {
           "name": "config/schedule_on",
           "refresh.interval": 3660
+        },
+        {
+          "name": "config/windowopendetectionenabled",
+          "refresh.interval": 3660,
+          "read": {
+            "at": "0x4051",
+            "cl": "0x0201",
+            "ep": 1,
+            "fn": "zcl:attr",
+            "mf": "0x1246"
+          },
+          "parse": {
+            "at": "0x4051",
+            "cl": "0x0201",
+            "ep": 1,
+            "eval": "Item.val = Attr.val;",
+            "fn": "zcl:attr",
+            "mf": "0x1246"
+          },
+          "write": {
+            "at": "0x4051",
+            "cl": "0x0201",
+            "dt": "0x10",
+            "ep": 1,
+            "eval": "Item.val",
+            "fn": "zcl:attr",
+            "mf": "0x1246"
+          }
         },
         {
           "name": "state/errorcode",
@@ -249,15 +407,15 @@
             "at": "0x4000",
             "cl": "0x0B05",
             "ep": 1,
-            "eval": "Item.val = Attr.val;",
-            "fn": "zcl",
-            "mf": "0x1246"
+            "fn": "zcl:attr",
+            "mf": "0x1246",
+            "script": "danfoss_errorcode.js"
           },
           "read": {
             "at": "0x4000",
             "cl": "0x0B05",
             "ep": 1,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           }
         },
@@ -272,14 +430,14 @@
             "cl": "0x0201",
             "ep": 1,
             "eval": "Item.val = Attr.val;",
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "read": {
             "at": "0x4012",
             "cl": "0x0201",
             "ep": 1,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "default": false
@@ -291,7 +449,7 @@
             "cl": "0x0201",
             "ep": 1,
             "eval": "Item.val = Attr.val > 3;",
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "read": {
             "fn": "none"
@@ -305,7 +463,7 @@
             "cl": "0x0201",
             "ep": 1,
             "eval": "Item.val = Attr.val;",
-            "fn": "zcl"
+            "fn": "zcl:attr"
           }
         },
         {
@@ -319,7 +477,7 @@
             "at": "0x4000",
             "cl": "0x0201",
             "ep": 1,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246",
             "script": "danfoss_windowopen_state.js"
           },
@@ -327,7 +485,7 @@
             "at": "0x4000",
             "cl": "0x0201",
             "ep": 1,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1246"
           },
           "default": "Quarantine"
@@ -335,7 +493,7 @@
       ]
     },
     {
-      "type": "ZHATime",
+      "type": "$TYPE_TIME",
       "restapi": "/sensors",
       "uuid": [
         "$address.ext",
@@ -386,7 +544,7 @@
             "cl": "0x0001",
             "ep": 1,
             "eval": "Item.val = Attr.val / 2;",
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "read": {
             "fn": "none"

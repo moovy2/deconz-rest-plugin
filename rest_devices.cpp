@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2021 dresden elektronik ingenieurtechnik gmbh.
+ * Copyright (c) 2013-2024 dresden elektronik ingenieurtechnik gmbh.
  * All rights reserved.
  *
  * The software in this package is published under the terms of the BSD
@@ -14,8 +14,16 @@
 #include "de_web_plugin.h"
 #include "de_web_plugin_private.h"
 #include "product_match.h"
+#include "database.h"
 #include "device_descriptions.h"
+#include "device_ddf_bundle.h"
+#include "deconz/u_assert.h"
+#include "deconz/u_sstream_ex.h"
+#include "deconz/u_memory.h"
 #include "rest_devices.h"
+#include "utils/scratchmem.h"
+#include "json.h"
+#include "crypto/mmohash.h"
 #include "utils/ArduinoJson.h"
 #include "utils/utils.h"
 
@@ -74,6 +82,11 @@ int RestDevices::handleApi(const ApiRequest &req, ApiResponse &rsp)
     {
         return putDeviceReloadDDF(req, rsp);
     }
+    // PUT /api/<apikey>/devices/<uniqueid>/ddf/policy
+    else if (req.path.size() == 6 && req.hdr.method() == QLatin1String("PUT") && req.path[4] == QLatin1String("ddf") && req.path[5] == QLatin1String("policy"))
+    {
+        return putDeviceSetDDFPolicy(req, rsp);
+    }
     // GET /api/<apikey>/devices/<uniqueid>/ddf
     else if (req.hdr.pathComponentsCount() == 5 && req.hdr.httpMethod() == HttpGet && req.hdr.pathAt(4) == QLatin1String("ddf"))
     {
@@ -102,6 +115,38 @@ int RestDevices::handleApi(const ApiRequest &req, ApiResponse &rsp)
     }
 
     return REQ_NOT_HANDLED;
+}
+
+static DeviceKey getDeviceKey(QLatin1String uniqueid)
+{
+    DeviceKey result = 0;
+    const char *str = uniqueid.data();
+
+    if (uniqueid.size() < 23)
+        return result;
+
+    // 00:11:22:33:44:55:66:77
+    for (int pos = 0; pos < 23; pos++)
+    {
+        uint64_t ch = (unsigned)str[pos];
+        if (ch == ':' && (pos % 3) == 2) // ensure color only every 3rd pos
+            continue;
+
+        result <<= 4;
+
+        if      (ch >= '0' && ch <= '9') ch = ch - '0';
+        else if (ch >= 'a' && ch <= 'f') ch = (ch - 'a') + 10;
+        else if (ch >= 'A' && ch <= 'F') ch = (ch - 'A') + 10;
+        else
+        {
+            result = 0;
+            break;
+        }
+
+        result |= (ch & 0x0F);
+    }
+
+    return result;
 }
 
 /*! Deletes a Sensor as a side effect it will be removed from the REST API
@@ -242,11 +287,28 @@ int RestDevices::getDevice(const ApiRequest &req, ApiResponse &rsp)
         return REQ_READY_SEND;
     }
 
-    const DeviceDescription ddf = plugin->deviceDescriptions->get(device);
+    const DeviceDescription &ddf = plugin->deviceDescriptions->get(device);
 
     if (ddf.isValid())
     {
         rsp.map["productid"] = ddf.product;
+    }
+
+    {
+        const ResourceItem *ddfPolicyItem = device->item(RAttrDdfPolicy);
+        if (ddfPolicyItem)
+        {
+            rsp.map["ddf_policy"] = ddfPolicyItem->toString();
+        }
+    }
+
+    if (ddf.storageLocation == deCONZ::DdfBundleLocation || ddf.storageLocation == deCONZ::DdfBundleUserLocation)
+    {
+        const ResourceItem *ddfHashItem = device->item(RAttrDdfHash);
+        if (ddfHashItem && ddfHashItem->toCString()[0] != '\0')
+        {
+            rsp.map["ddf_hash"] = ddfHashItem->toString();
+        }
     }
 
     QVariantList subDevices;
@@ -700,7 +762,7 @@ bool ddfSerializeV1(JsonDoc &doc, const DeviceDescription &ddf, char *buf, size_
     {
         sz = serializeJson(doc, buf, bufsize);
     }
-    assert(sz < bufsize);
+    U_ASSERT(sz < bufsize);
 
     DBG_Printf(DBG_INFO, "JSON serialized size %d\n", int(sz));
 
@@ -770,7 +832,7 @@ int RestDevices::getDeviceDDF(const ApiRequest &req, ApiResponse &rsp)
 int RIS_GetDeviceIntrospect(const ApiRequest &req, ApiResponse &rsp)
 {
     Q_UNUSED(req)
-    rsp.str = QLatin1String("[\"introspect\": false]");
+    rsp.str = QLatin1String("{\"introspect\": false}");
     return REQ_READY_SEND;
 }
 
@@ -1045,49 +1107,14 @@ int RestDevices::putDeviceInstallCode(const ApiRequest &req, ApiResponse &rsp)
     // installcode
     if (map.contains("installcode"))
     {
-        QString installCode = map["installcode"].toString().trimmed();
+        std::string installCode = map["installcode"].toString().toStdString();
 
-        if (map["installcode"].type() == QVariant::String && !installCode.isEmpty())
+        if (map["installcode"].type() == QVariant::String && !installCode.empty())
         {
-            // TODO process install code
+            char mmoHashHex[128] = {0};
+            std::vector<unsigned char> mmoHash;
 
-            // MAC: f8f005fffff2b37a
-            // IC: 07E2EE0C820EFE0C0C21742E0A037C07
-            // CRC-16 7AC5
-
-            QProcess cli;
-            cli.start("hashing-cli", QStringList() << "-i" << installCode);
-            if (!cli.waitForStarted(2000))
-            {
-                rsp.list.append(errorToMap(ERR_INTERNAL_ERROR, QString("/devices"), QString("internal error, %1, occured").arg(cli.error())));
-                rsp.httpStatus = HttpStatusServiceUnavailable;
-                return REQ_READY_SEND;
-            }
-
-            if (!cli.waitForFinished(2000))
-            {
-                rsp.list.append(errorToMap(ERR_INTERNAL_ERROR, QString("/devices"), QString("internal error, %1, occured").arg(cli.error())));
-                rsp.httpStatus = HttpStatusServiceUnavailable;
-                return REQ_READY_SEND;
-            }
-
-            QByteArray mmoHash;
-            while (!cli.atEnd())
-            {
-                const QByteArray result = cli.readLine();
-                if (result.contains("Hash Result:"))
-                {
-                    const auto ls = result.split(':');
-                    DBG_Assert(ls.size() == 2);
-                    if (ls.size() == 2)
-                    {
-                        mmoHash = ls[1].trimmed();
-                        break;
-                    }
-                }
-            }
-
-            if (mmoHash.isEmpty())
+            if (!CRYPTO_GetMmoHashFromInstallCode(installCode, mmoHash))
             {
                 rsp.list.append(errorToMap(ERR_INTERNAL_ERROR, QLatin1String("/devices"), QLatin1String("internal error, failed to calc mmo hash, occured")));
                 rsp.httpStatus = HttpStatusServiceUnavailable;
@@ -1097,16 +1124,21 @@ int RestDevices::putDeviceInstallCode(const ApiRequest &req, ApiResponse &rsp)
 #if DECONZ_LIB_VERSION >= 0x010B00
             QVariantMap m;
             m["mac"] = uniqueid.toULongLong(&ok, 16);
-            m["key"] = mmoHash;
-            if (ok && mmoHash.size() == 32)
+
+            if (mmoHash.size() == 16)
+            {
+                DBG_HexToAscii(&mmoHash[0], mmoHash.size(), reinterpret_cast<unsigned char*>(&mmoHashHex[0]));
+            }
+            m["key"] = &mmoHashHex[0];
+            if (ok && strlen(mmoHashHex) == 32)
             {
                 ok = deCONZ::ApsController::instance()->setParameter(deCONZ::ParamLinkKey, m);
             }
 #endif
             QVariantMap rspItem;
             QVariantMap rspItemState;
-            rspItemState["installcode"] = installCode;
-            rspItemState["mmohash"] = mmoHash;
+            rspItemState["installcode"] = installCode.data();
+            rspItemState["mmohash"] = &mmoHashHex[0];
             rspItem["success"] = rspItemState;
             rsp.list.append(rspItem);
             rsp.httpStatus = HttpStatusOk;
@@ -1114,7 +1146,7 @@ int RestDevices::putDeviceInstallCode(const ApiRequest &req, ApiResponse &rsp)
         }
         else
         {
-            rsp.list.append(errorToMap(ERR_INVALID_VALUE, QString("/devices"), QString("invalid value, %1, for parameter, installcode").arg(installCode)));
+            rsp.list.append(errorToMap(ERR_INVALID_VALUE, QString("/devices"), QString("invalid value, %1, for parameter, installcode").arg(installCode.data())));
             rsp.httpStatus = HttpStatusBadRequest;
         }
     }
@@ -1133,15 +1165,16 @@ int RestDevices::putDeviceReloadDDF(const ApiRequest &req, ApiResponse &rsp)
 
     rsp.httpStatus = HttpStatusOk;
 
-    auto uniqueId = req.path.at(3);
-    uniqueId.remove(QLatin1Char(':'));
+    QLatin1String uniqueId = req.hdr.pathAt(3);
+    DeviceKey deviceKey = getDeviceKey(uniqueId);
 
-    bool ok = false;
-    const auto deviceKey = uniqueId.toULongLong(&ok, 16);
-
-    if (ok)
+    if (deviceKey)
     {
-        emit eventNotify(Event(RDevices, REventDDFReload, 0, deviceKey));
+        Device *device = DEV_GetDevice(plugin->m_devices, deviceKey);
+        if (device)
+        {
+            DeviceDescriptions::instance()->reloadAllRawJsonAndBundles(device);
+        }
 
         QVariantMap rspItem;
         QVariantMap rspItemState;
@@ -1153,6 +1186,175 @@ int RestDevices::putDeviceReloadDDF(const ApiRequest &req, ApiResponse &rsp)
     else
     {
         // TODO
+    }
+
+    return REQ_READY_SEND;
+}
+
+/*
+
+    curl -X PUT -H "Content-Type: application/json" -d '{"policy": "nope", "hash":"value"}' 127.0.0.1:8090/api/12345/devices/00.99/ddf/policy
+
+
+*/
+int RestDevices::putDeviceSetDDFPolicy(const ApiRequest &req, ApiResponse &rsp)
+{
+    DBG_Assert(req.path.size() == 6);
+
+    Device *device = nullptr;
+    QLatin1String uniqueId = req.hdr.pathAt(3);
+    DeviceKey deviceKey = getDeviceKey(uniqueId);
+
+    const QByteArray content = req.content.toUtf8();
+    const QString errAddr = QString("/devices/%1/ddf/policy").arg(uniqueId);
+
+    U_SStream ss;
+
+    cj_ctx cj;
+    std::array<cj_token, 16> tokens;
+    cj_token_ref refParent = 0;
+    cj_token_ref refPolicy;
+
+    char policyBuf[32];
+    char bundleHashBuf[96];
+    unsigned bundleHashLen = 0;
+    unsigned policyLen = 0;
+
+    if (deviceKey != 0)
+    {
+        device = DEV_GetDevice(plugin->m_devices, deviceKey);
+    }
+
+    if (!device)
+    {
+        rsp.httpStatus = HttpStatusNotFound;
+        rsp.list.append(errorToMap(ERR_RESOURCE_NOT_AVAILABLE, errAddr, QString("resource, /devices/%1, not available").arg(uniqueId)));
+
+        return REQ_READY_SEND;
+    }
+
+    cj_parse_init(&cj, content.data(), (cj_size)content.size(), tokens.data(), tokens.size());
+    cj_parse(&cj);
+
+    if (cj.status != CJ_OK)
+    {
+
+        rsp.list.append(errorToMap(ERR_INVALID_JSON, errAddr, "body contains invalid JSON"));
+        rsp.httpStatus = HttpStatusBadRequest;
+        return REQ_READY_SEND;
+    }
+
+
+    if (cj_copy_value(&cj, policyBuf, sizeof(policyBuf), refParent, "policy") == 0)
+    {
+        rsp.list.append(errorToMap(ERR_MISSING_PARAMETER, errAddr, "missing parameters in body"));
+        rsp.httpStatus = HttpStatusBadRequest;
+        return REQ_READY_SEND;
+    }
+
+    /*
+     * Verify it's a valid policy value.
+     */
+
+    policyLen = U_strlen(policyBuf);
+    const char *validValues[5] = { "latest_prefer_stable", "latest", "pin", "raw_json", nullptr };
+
+    U_sstream_init(&ss, policyBuf, policyLen);
+
+    int v = 0;
+    for (; validValues[v]; v++)
+    {
+        unsigned len = U_strlen(validValues[v]);
+        if (policyLen == len && U_sstream_starts_with(&ss, validValues[v]))
+            break;
+    }
+
+    if (validValues[v] == nullptr)
+    {
+        rsp.list.append(errorToMap(ERR_INVALID_VALUE, errAddr, QString("invalid value, %1, for parameter, policy").arg(policyBuf)));
+        rsp.httpStatus = HttpStatusBadRequest;
+        return REQ_READY_SEND;
+    }
+
+    /*
+     * The 'pin' policy requires a 'hash' value to be specified.
+     */
+
+    if (U_sstream_starts_with(&ss, "pin"))
+    {
+        if (cj_copy_value(&cj, bundleHashBuf, sizeof(bundleHashBuf), refParent, "hash") == 0)
+        {
+            rsp.list.append(errorToMap(ERR_MISSING_PARAMETER, errAddr, "missing parameters in body"));
+            rsp.httpStatus = HttpStatusBadRequest;
+            return REQ_READY_SEND;
+        }
+
+        bundleHashLen = U_strlen(bundleHashBuf);
+        if (!DDFB_SanitizeBundleHashString(bundleHashBuf, bundleHashLen))
+        {
+            rsp.list.append(errorToMap(ERR_INVALID_VALUE, errAddr, QString("invalid value, %1, for parameter, hash").arg(bundleHashBuf)));
+            rsp.httpStatus = HttpStatusBadRequest;
+            return REQ_READY_SEND;
+        }
+    }
+
+    bool needReload = false;
+    ResourceItem *ddfPolicyItem = device->item(RAttrDdfPolicy);
+    ResourceItem *ddfHashItem = device->item(RAttrDdfHash);
+    U_ASSERT(ddfPolicyItem);
+    U_ASSERT(ddfHashItem);
+
+    if (!ddfPolicyItem->equalsString(policyBuf, policyLen))
+    {
+        ddfPolicyItem->setValue(policyBuf, policyLen, ResourceItem::SourceApi);
+        needReload = true;
+
+        DB_ResourceItem2 dbItem;
+        dbItem.name = RAttrDdfPolicy;
+        U_memcpy(dbItem.value, policyBuf, policyLen);
+        dbItem.value[policyLen] = '\0';
+        dbItem.valueSize = policyLen;
+        dbItem.timestampMs = ddfPolicyItem->lastSet().toMSecsSinceEpoch();
+        DB_StoreDeviceItem(device->deviceId(), dbItem);
+    }
+
+    if (bundleHashLen != 0 && !ddfHashItem->equalsString(bundleHashBuf, bundleHashLen))
+    {
+        ddfHashItem->setValue(bundleHashBuf, bundleHashLen, ResourceItem::SourceApi);
+        needReload = true;
+
+        DB_ResourceItem2 dbItem;
+        dbItem.name = RAttrDdfHash;
+        U_memcpy(dbItem.value, bundleHashBuf, bundleHashLen);
+        dbItem.value[bundleHashLen] = '\0';
+        dbItem.valueSize = bundleHashLen;
+        dbItem.timestampMs = ddfHashItem->lastSet().toMSecsSinceEpoch();
+        DB_StoreDeviceItem(device->deviceId(), dbItem);
+    }
+
+    rsp.httpStatus = HttpStatusOk;
+
+    {
+        QVariantMap result;
+        QVariantMap item;
+
+        item[QString("/devices/%1/ddf/policy").arg(uniqueId)] = policyBuf;
+        result["success"] = item;
+        rsp.list.append(result);
+    }
+
+    if (bundleHashLen != 0)
+    {
+        QVariantMap result;
+        QVariantMap item;
+        item[QString("/devices/%1/ddf/hash").arg(uniqueId)] = bundleHashBuf;
+        result["success"] = item;
+        rsp.list.append(result);
+    }
+
+    if (needReload)
+    {
+        emit eventNotify(Event(RDevices, REventDDFReload, 0, deviceKey));
     }
 
     return REQ_READY_SEND;

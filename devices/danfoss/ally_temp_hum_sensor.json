@@ -1,9 +1,10 @@
 {
   "schema": "devcap1.schema.json",
+  "uuid": "26f6abcd-01a6-462c-b789-6f2d66c2ff4e",
   "manufacturername": "_TZ3000_mxzo5rhf",
   "modelid": "TS0201",
   "vendor": "Danfoss",
-  "product": "Ally temp./hum. sensor",
+  "product": "Ally temperature and humidity sensor (014G2480)",
   "sleeper": true,
   "status": "Gold",
   "subdevices": [
@@ -51,7 +52,7 @@
             "cl": "0x0001",
             "ep": 1,
             "eval": "Item.val = Attr.val / 2;",
-            "fn": "zcl"
+            "fn": "zcl:attr"
           }
         },
         {
@@ -116,7 +117,7 @@
             "cl": "0x0001",
             "ep": 1,
             "eval": "Item.val = Attr.val / 2;",
-            "fn": "zcl"
+            "fn": "zcl:attr"
           }
         },
         {

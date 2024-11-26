@@ -1,9 +1,10 @@
 {
   "schema": "devcap1.schema.json",
+  "uuid": "bf113ff9-a8c5-4e1e-9088-33cc0d5f4daf",
   "manufacturername": "Develco Products A/S",
   "modelid": "AQSZB-110",
   "vendor": "Develco Products",
-  "product": "AQSZB-110 TVOC sensor",
+  "product": "Air quality sensor (AQSZB-110)",
   "sleeper": true,
   "status": "Gold",
   "subdevices": [
@@ -52,14 +53,14 @@
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 38,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015"
           },
           "parse": {
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 38,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015",
             "script": "develco_firmware.js"
           }
@@ -93,7 +94,7 @@
             "at": "0x0000",
             "cl": "0xfc03",
             "ep": 38,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015",
             "eval": "if (Attr.val != 65535) { Item.val = Attr.val; }"
           }
@@ -104,7 +105,19 @@
           "parse": {
             "fn": "numtostr",
             "srcitem": "state/airqualityppb",
-            "op": "le", "to": [65, "excellent", 220, "good", 660, "moderate", 5000, "unhealthy", 65535, "out of scale"]
+            "op": "le",
+            "to": [
+              65,
+              "excellent",
+              220,
+              "good",
+              660,
+              "moderate",
+              5000,
+              "unhealthy",
+              65535,
+              "out of scale"
+            ]
           }
         },
         {
@@ -158,14 +171,14 @@
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 38,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015"
           },
           "parse": {
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 38,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015",
             "script": "develco_firmware.js"
           }
@@ -252,14 +265,14 @@
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 38,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015"
           },
           "parse": {
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 38,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015",
             "script": "develco_firmware.js"
           }

@@ -1,9 +1,18 @@
 {
   "schema": "devcap1.schema.json",
-  "manufacturername": "frient A/S",
-  "modelid": "SPLZB-131",
-  "vendor": "Develco Products",
-  "product": "SPLZB-131 smart plug (Schuko)",
+  "uuid": "ca5aa4de-3709-4d5f-9cb4-6748d155798f",
+  "manufacturername": [
+    "frient A/S",
+    "frient A/S",
+    "frient A/S"
+  ],
+  "modelid": [
+    "SPLZB-131",
+    "SPLZB-134",
+    "SPLZB-141"
+  ],
+  "vendor": "Frient",
+  "product": "Smart plug mini (SPLZB-131/SPLZB-134/SPLZB-141)",
   "sleeper": false,
   "status": "Gold",
   "subdevices": [
@@ -40,14 +49,14 @@
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 2,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015"
           },
           "parse": {
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 2,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015",
             "script": "develco_firmware.js"
           }
@@ -117,14 +126,14 @@
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 2,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015"
           },
           "parse": {
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 2,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015",
             "script": "develco_firmware.js"
           }
@@ -159,7 +168,7 @@
             "cl": "0x0b04",
             "ep": 2,
             "eval": "Item.val = Math.round(Attr.val / 100);",
-            "fn": "zcl"
+            "fn": "zcl:attr"
           }
         }
       ]
@@ -210,14 +219,14 @@
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 2,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015"
           },
           "parse": {
             "at": "0x8000",
             "cl": "0x0000",
             "ep": 2,
-            "fn": "zcl",
+            "fn": "zcl:attr",
             "mf": "0x1015",
             "script": "develco_firmware.js"
           }
@@ -248,14 +257,14 @@
             "at": "0x0400",
             "cl": "0x0702",
             "ep": 2,
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "parse": {
             "at": "0x0400",
             "cl": "0x0702",
             "ep": 2,
             "eval": "if (Attr.val != -16777215 && Attr.val != 16777215) { Item.val = Attr.val; }",
-            "fn": "zcl"
+            "fn": "zcl:attr"
           },
           "default": 0
         }

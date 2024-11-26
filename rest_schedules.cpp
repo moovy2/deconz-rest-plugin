@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 dresden elektronik ingenieurtechnik gmbh.
+ * Copyright (c) 2016-2024 dresden elektronik ingenieurtechnik gmbh.
  * All rights reserved.
  *
  * The software in this package is published under the terms of the BSD
@@ -12,9 +12,9 @@
 #include <QTcpSocket>
 #include <QVariantMap>
 #include <QRegExp>
-#include "de_web_plugin.h"
 #include "de_web_plugin_private.h"
 #include "json.h"
+#include "deconz/u_rand32.h"
 
 /*! Inits the schedules manager.
  */
@@ -365,7 +365,7 @@ int DeRestPluginPrivate::setScheduleAttributes(const ApiRequest &req, ApiRespons
 
             if (!cmd.isEmpty() && cmd.contains("address") && cmd.contains("method") && cmd.contains("body"))
             {
-                i->command = deCONZ::jsonStringFromMap(cmd);
+                i->command = Json::serialize(cmd);
                 i->jsonMap["command"] = map["command"];
 
                 QVariantMap rspItem;
@@ -440,14 +440,18 @@ int DeRestPluginPrivate::setScheduleAttributes(const ApiRequest &req, ApiRespons
                 QRegExp rnd("(\\d\\d):(\\d\\d):(\\d\\d)");
                 if (rnd.exactMatch(ls[1]))
                 {
+                    // TODO(mpi): the following code could use a refactor
                     randomMax = rnd.cap(1).toInt() * 60 * 60 + // h
                         rnd.cap(2).toInt() * 60 +   // m
                         rnd.cap(3).toInt(); // s
 
-                    if (randomMax == 0) {
+                    if (randomMax == 0)
+                    {
                         randomTime = 0;
-                    } else {
-                        randomTime = (qrand() % ((randomMax + 1) - 1) + 1);
+                    }
+                    else
+                    {
+                        randomTime = (U_rand32() % ((randomMax + 1) - 1) + 1);
                     }
                 }
                 else
@@ -798,7 +802,7 @@ bool DeRestPluginPrivate::jsonToSchedule(const QString &jsonString, Schedule &sc
             return false;
         }
 
-        schedule.command = deCONZ::jsonStringFromMap(cmd);
+        schedule.command = Json::serialize(cmd);
     }
     else
     {
@@ -900,10 +904,13 @@ bool DeRestPluginPrivate::jsonToSchedule(const QString &jsonString, Schedule &sc
                     rnd.cap(2).toInt() * 60 +   // m
                     rnd.cap(3).toInt(); // s
 
-                if (randomMax == 0) {
+                if (randomMax == 0)
+                {
                     randomTime = 0;
-                } else {
-                    randomTime = (qrand() % ((randomMax + 1) - 1) + 1);
+                }
+                else
+                {
+                    randomTime = (U_rand32() % ((randomMax + 1) - 1) + 1);
                 }
             }
             else
@@ -1139,7 +1146,7 @@ void DeRestPluginPrivate::scheduleTimerFired()
         {
             if (i->endtime.isValid() && i->endtime > now)
             {
-                DBG_Printf(DBG_INFO, "schedule %s timeout in %d s\n", qPrintable(i->id), now.secsTo(i->endtime));
+                DBG_Printf(DBG_INFO, "schedule %s timeout in %d s\n", qPrintable(i->id), (int)now.secsTo(i->endtime));
                 continue;
             }
             else if (i->endtime.isValid())
@@ -1219,7 +1226,7 @@ void DeRestPluginPrivate::scheduleTimerFired()
         {
             i->status = QLatin1String("disabled");
             i->jsonMap["status"] = i->status;
-            i->jsonString = deCONZ::jsonStringFromMap(i->jsonMap);
+            i->jsonString = Json::serialize(i->jsonMap);
             if (i->autodelete)
             {
                 DBG_Printf(DBG_INFO, "schedule %s: %s deleted (too old)\n", qPrintable(i->id), qPrintable(i->name));
@@ -1253,7 +1260,7 @@ void DeRestPluginPrivate::scheduleTimerFired()
                 {
                     i->status = QLatin1String("disabled");
                     i->jsonMap["status"] = i->status;
-                    i->jsonString = deCONZ::jsonStringFromMap(i->jsonMap);
+                    i->jsonString = Json::serialize(i->jsonMap);
                 }
                 queSaveDb(DB_SCHEDULES, DB_SHORT_SAVE_DELAY);
             }
@@ -1294,10 +1301,13 @@ void DeRestPluginPrivate::scheduleTimerFired()
                             rnd.cap(2).toInt() * 60 +   // m
                             rnd.cap(3).toInt(); // s
 
-                        if (randomMax == 0) {
+                        if (randomMax == 0)
+                        {
                             randomTime = 0;
-                        } else {
-                            randomTime = (qrand() % ((randomMax + 1) - 1) + 1);
+                        }
+                        else
+                        {
+                            randomTime = (U_rand32() % ((randomMax + 1) - 1) + 1);
                         }
                     }
 
@@ -1345,7 +1355,7 @@ void DeRestPluginPrivate::scheduleTimerFired()
             }
             QString method = cmd["method"].toString();
             QString address = cmd["address"].toString();
-            QString content = deCONZ::jsonStringFromMap(cmd["body"].toMap());
+            QString content = Json::serialize(cmd["body"].toMap());
 
             // check if fields contain data
             if (method.isEmpty() || address.isEmpty() || content.isEmpty())
@@ -1357,7 +1367,7 @@ void DeRestPluginPrivate::scheduleTimerFired()
             }
 
             QHttpRequestHeader hdr(method, address);
-            QStringList path = QString(hdr.path()).split('/', QString::SkipEmptyParts);
+            QStringList path = QString(hdr.path()).split('/', SKIP_EMPTY_PARTS);
 
             ApiRequest req(hdr, path, nullptr, content);
             ApiResponse rsp; // dummy
